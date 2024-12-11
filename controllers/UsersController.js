@@ -1,11 +1,10 @@
 /**
  * UsersController Module
  * -----------------------
- * This module defines the application controller function for user-related
- * operations.
+ * Handles user-related operations, including creating new users in the database.
  *
  * Endpoints:
- * - `POST /users`: Creates a new user in the database.
+ * - POST /users: Create a new user.
  */
 
 import sha1 from 'sha1';
@@ -13,40 +12,40 @@ import dbClient from '../utils/db';
 
 class UsersController {
   /**
-     * Handles the `/users` endpoint.
-     * Creates a new user in the database.
+     * Handles the POST /users endpoint.
+     * Creates a new user in the database if email and password are valid.
      *
-     * @param {Request} req - The HTTP request object.
-     * @param {Response} res - The HTTP response object.
+     * @param {Object} req - The HTTP request object.
+     * @param {Object} res - The HTTP response object.
      */
   static async postNew(req, res) {
-    const { email, password } = req.body;
-
-    // Validate email and password
-    if (!email) {
-      return res.status(400).json({ error: 'Missing email' });
-    }
-    if (!password) {
-      return res.status(400).json({ error: 'Missing password' });
-    }
-
-    // Check if email already exists
-    const existingUser = await dbClient.db.collection('users').findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: 'Already exist' });
-    }
-
-    // Hash the password
-    const hashedPassword = sha1(password);
-
-    // Create new user document
-    const newUser = {
-      email,
-      password: hashedPassword,
-    };
-
     try {
+      const { email, password } = req.body;
+
+      // Check for missing email or password
+      if (!email) {
+        return res.status(400).json({ error: 'Missing email' });
+      }
+      if (!password) {
+        return res.status(400).json({ error: 'Missing password' });
+      }
+
+      // Check if user already exists
+      const existingUser = await dbClient.db
+        .collection('users')
+        .findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ error: 'Already exist' });
+      }
+
+      // Hash the password
+      const hashedPassword = sha1(password);
+
+      // Create the new user
+      const newUser = { email, password: hashedPassword };
       const result = await dbClient.db.collection('users').insertOne(newUser);
+
+      // Respond with the newly created user's ID and email
       return res.status(201).json({ id: result.insertedId, email });
     } catch (error) {
       console.error('Error creating user:', error);
