@@ -89,6 +89,10 @@ class DBClient {
       return 0;
     }
   }
+
+  async usersCollection() {
+    return this.db.collection('users');
+  }
 }
 
 // Exporting a singleton instance of DBClient
