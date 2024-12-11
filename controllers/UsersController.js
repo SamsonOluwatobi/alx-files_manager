@@ -6,52 +6,49 @@
  * Endpoints:
  * - POST /users: Create a new user.
  */
-
 import sha1 from 'sha1';
 import dbClient from '../utils/db';
 
-class UsersController {
+export default class UsersController {
   /**
-     * Handles the POST /users endpoint.
-     * Creates a new user in the database if email and password are valid.
-     *
-     * @param {Object} req - The HTTP request object.
-     * @param {Object} res - The HTTP response object.
-     */
+   * Create a new user.
+   * @param {Object} req - HTTP request.
+   * @param {Object} res - HTTP response.
+   */
   static async postNew(req, res) {
+    const email = req.body && req.body.email ? req.body.email : null;
+    const password = req.body && req.body.password ? req.body.password : null;
+
+    // Validate email and password
+    if (!email) {
+      res.status(400).json({ error: 'Missing email' });
+      return;
+    }
+    if (!password) {
+      res.status(400).json({ error: 'Missing password' });
+      return;
+    }
+
     try {
-      const { email, password } = req.body;
+      // Check if the user already exists
+      const usersCollection = await dbClient.usersCollection();
+      const existingUser = await usersCollection.findOne({ email });
 
-      // Check for missing email or password
-      if (!email) {
-        return res.status(400).json({ error: 'Missing email' });
-      }
-      if (!password) {
-        return res.status(400).json({ error: 'Missing password' });
-      }
-
-      // Check if user already exists
-      const existingUser = await dbClient.db
-        .collection('users')
-        .findOne({ email });
       if (existingUser) {
-        return res.status(400).json({ error: 'Already exist' });
+        res.status(400).json({ error: 'Already exist' });
+        return;
       }
 
-      // Hash the password
+      // Insert new user into the database
       const hashedPassword = sha1(password);
+      const insertionInfo = await usersCollection.insertOne({ email, password: hashedPassword });
+      const userId = insertionInfo.insertedId.toString();
 
-      // Create the new user
-      const newUser = { email, password: hashedPassword };
-      const result = await dbClient.db.collection('users').insertOne(newUser);
-
-      // Respond with the newly created user's ID and email
-      return res.status(201).json({ id: result.insertedId, email });
+      // Return success response
+      res.status(201).json({ id: userId, email });
     } catch (error) {
       console.error('Error creating user:', error);
-      return res.status(500).json({ error: 'Internal Server Error' });
+      res.status(500).json({ error: 'Internal Server Error' });
     }
   }
 }
-
-export default UsersController;
